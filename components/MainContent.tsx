@@ -1,3 +1,4 @@
+
 import React, { useContext, useState, useCallback } from 'react';
 import { AppContext } from '../context/AppContext';
 import { UI_STRINGS } from '../constants';
@@ -14,7 +15,7 @@ import { Skeleton } from './common/Skeleton';
 // Component hiển thị khung xương (skeleton) cho danh sách khóa học khi đang tải dữ liệu.
 // Cung cấp trải nghiệm người dùng tốt hơn thay vì một màn hình trắng.
 const CourseListSkeleton = () => (
-    <div className="grid gap-8" style={{gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))'}}>
+    <div className="grid gap-8 [grid-template-columns:repeat(auto-fill,minmax(320px,1fr))]">
       {Array.from({ length: 6 }).map((_, index) => (
         <div key={index} className="bg-white dark:bg-gray-800/50 rounded-2xl border border-black/5 dark:border-white/5 overflow-hidden flex flex-col">
           <Skeleton className="h-48" />
@@ -157,7 +158,7 @@ export const MainContent: React.FC = () => {
                       </button>
                   )}
                 </div>
-                <div className="grid gap-3" style={{gridTemplateColumns: 'repeat(auto-fill, minmax(192px, 1fr))'}}>
+                <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(192px,1fr))]">
                     {selectedPath.documents.map(doc => <DocumentLink key={doc.id} document={doc} parentId={{pathId: selectedPath.id}} onEdit={(d) => handleEdit(d, 'document', {pathId: selectedPath.id})}/>)}
                 </div>
             </section>
@@ -165,7 +166,7 @@ export const MainContent: React.FC = () => {
 
           {/* Danh sách các thẻ khóa học */}
           {courses.length > 0 ? (
-          <div className="grid gap-8" style={{gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))'}}>
+          <div className="grid gap-8 [grid-template-columns:repeat(auto-fill,minmax(320px,1fr))]">
               {courses.map((course) => <CourseCard key={course.id} course={course} pathId={selectedPath.id} onEdit={handleEdit} />)}
           </div>
           ) : (

@@ -55,7 +55,7 @@ export const HomePage: React.FC = () => {
                 {/* Tiêu đề và phụ đề của trang chủ */}
                 <h2 className="text-4xl md:text-5xl font-extrabold bg-gradient-to-b from-[#E31F26] to-red-800 dark:from-red-500 dark:to-[#E31F26] bg-clip-text text-transparent leading-tight md:leading-snug">
                     <span className="block">Trường học Công nghệ MindX</span>
-                    <span className="block text-3xl md:text-4xl">Course Management System</span>
+                    <span className="block text-3xl md:text-4x2">Course Management System</span>
                 </h2>
                 <p className="mt-4 text-lg">Hệ thống quản lý và chia sẻ tài liệu liên quan đến Khóa học tại MindX.</p>
                 
