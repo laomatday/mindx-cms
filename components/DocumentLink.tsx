@@ -55,10 +55,10 @@ export const DocumentLink: React.FC<DocumentLinkProps> = memo(({ document, paren
 
   // Các lớp CSS cho thẻ `<a>` chính, được tạo kiểu như một thẻ tab/badge.
   const linkClasses = [
-      "relative flex w-full items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200",
-      "bg-gray-100 dark:bg-gray-600",
+      "relative flex w-full items-center gap-3 px-4 py-2.5 rounded-full text-sm font-semibold transition-all duration-200",
+      "bg-gray-100 dark:bg-gray-800",
       "text-[#313131] dark:text-gray-200",
-      "hover:bg-gray-200 dark:hover:bg-gray-500",
+      "hover:bg-gray-200 dark:hover:bg-gray-700",
       isDragging ? "opacity-40 shadow-lg" : "opacity-100",
       isDragOver ? "border-l-2 border-[#E31F26]" : ""
   ].join(" ");
@@ -82,7 +82,7 @@ export const DocumentLink: React.FC<DocumentLinkProps> = memo(({ document, paren
         {isAdmin && <GripVertical size={16} className="opacity-60 flex-shrink-0 cursor-grab" />}
         
         {/* Biểu tượng của loại tài liệu */}
-        <DocumentIcon category={document.category} className="w-4 h-4 opacity-80 flex-shrink-0" />
+        <DocumentIcon category={document.category} className="w-5 h-5 opacity-80 flex-shrink-0" />
         
         {/* Tên tài liệu */}
         <span className="truncate flex-1 min-w-0">

@@ -27,9 +27,20 @@ interface SidebarItemProps {
 // Component cho một mục đơn lẻ trong sidebar.
 // Được tối ưu hóa bằng `memo` để tránh render lại không cần thiết.
 const SidebarItem: React.FC<SidebarItemProps> = memo(({ onClick, href, icon: Icon, children, isSelected = false, tooltip, isCollapsed }) => {
-    const commonClasses = `flex items-center w-full px-3 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 ease-in-out ${isCollapsed ? 'justify-center' : 'text-left gap-4'}`;
-    const selectedClasses = "bg-red-50 dark:bg-red-900/40 text-[#E31F26] shadow-inner";
-    const unselectedClasses = "hover:bg-gray-100 dark:hover:bg-gray-700/50";
+    // Base classes for the button/link element
+    const commonClasses = `flex items-center text-base font-bold transition-all duration-200 ease-in-out group`;
+
+    // State-dependent classes for layout and shape
+    const shapeClasses = isCollapsed
+        ? 'w-12 h-12 rounded-full justify-center' // Collapsed state: circular button
+        : 'w-full px-4 py-2.5 rounded-full text-left gap-4'; // Expanded state
+
+    // State-dependent classes for color (keeping original colors as requested)
+    const colorClasses = isSelected
+        ? 'bg-red-50 dark:bg-red-900/40 text-[#E31F26]'
+        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10';
+
+    const finalClassName = `${commonClasses} ${shapeClasses} ${colorClasses}`;
 
     const content = (
       <>
@@ -39,17 +50,33 @@ const SidebarItem: React.FC<SidebarItemProps> = memo(({ onClick, href, icon: Ico
         </span>
       </>
     );
-    
-    const sharedProps = {
-      className: `${commonClasses} ${isSelected ? selectedClasses : unselectedClasses}`,
-      onClick,
-      title: isCollapsed ? tooltip : undefined // Accessibility: use title for native tooltip when collapsed
-    };
 
-    // The tooltip-container and data-tooltip are used for the custom CSS tooltip
+    const sharedProps = {
+      className: finalClassName,
+      onClick,
+      'aria-label': tooltip,
+    };
+    
+    // When collapsed, a wrapper is used to center the circular button within the sidebar's layout.
+    if (isCollapsed) {
+        return (
+            <div className="flex justify-center w-full">
+                {href ? (
+                  <a href={href} target="_blank" rel="noopener noreferrer" {...sharedProps}>
+                    {content}
+                  </a>
+                ) : (
+                  <button type="button" {...sharedProps}>
+                    {content}
+                  </button>
+                )}
+            </div>
+        );
+    }
+    
+    // When expanded, the button itself is full-width, so no wrapper is needed.
     return (
-      <div className="tooltip-container" data-tooltip={isCollapsed ? tooltip : ''}>
-        {href ? (
+        href ? (
           <a href={href} target="_blank" rel="noopener noreferrer" {...sharedProps}>
             {content}
           </a>
@@ -57,10 +84,10 @@ const SidebarItem: React.FC<SidebarItemProps> = memo(({ onClick, href, icon: Ico
           <button type="button" {...sharedProps}>
             {content}
           </button>
-        )}
-      </div>
+        )
     );
 });
+
 
 interface SidebarProps {
     isCollapsed: boolean; // Trạng thái thu gọn của sidebar (từ component cha).
@@ -106,28 +133,26 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
     <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-950 border-r border-black/5 dark:border-white/5 overflow-hidden">
         {/* Phần header của sidebar */}
         <div className={`flex items-center h-[65px] flex-shrink-0
-            ${isCollapsed ? 'justify-center px-3' : 'justify-between px-4'}`}>
+            ${isCollapsed ? 'px-4' : 'justify-between px-4'}`}>
             
             {/* Nút thu gọn/mở rộng sidebar */}
             <button 
                 onClick={onToggle} 
-                className={`p-2 text-gray-700 dark:text-gray-300 rounded-full hover:bg-black/5 dark:hover:bg-white/10 ${isCollapsed ? '' : '-ml-2'}`}
+                className="p-2 text-gray-700 dark:text-gray-300 rounded-full hover:bg-black/5 dark:hover:bg-white/10"
                 aria-label="Toggle sidebar">
-                <Menu size={20} />
+                <Menu size={22} />
             </button>
             
             {/* Nút tìm kiếm, chỉ hiển thị khi sidebar không thu gọn */}
             {!isCollapsed && (
-                <div className="tooltip-container" data-tooltip={UI_STRINGS.searchPlaceholder}>
-                    <button onClick={() => setSearchModalOpen(true)} className="p-2 text-gray-700 dark:text-gray-300 rounded-full hover:bg-black/5 dark:hover:bg-white/10" aria-label="Search">
-                        <Search size={20} />
-                    </button>
-                </div>
+                <button onClick={() => setSearchModalOpen(true)} className="p-2 text-gray-700 dark:text-gray-300 rounded-full hover:bg-black/5 dark:hover:bg-white/10" aria-label={UI_STRINGS.searchPlaceholder}>
+                    <Search size={22} />
+                </button>
             )}
         </div>
 
         {/* Danh sách các mục điều hướng chính */}
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-1">
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-1 custom-scrollbar">
             <SidebarItem onClick={() => handlePathClick(null)} icon={Home} isSelected={!selectedPathId} tooltip={UI_STRINGS.home} isCollapsed={isCollapsed}>
                 {UI_STRINGS.home}
             </SidebarItem>

@@ -1,4 +1,5 @@
 
+
 import React, { useState, useContext, useCallback, useEffect } from 'react';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
@@ -96,7 +97,7 @@ function App() {
         {/* Thuộc tính `key` ở đây rất quan trọng. Khi `key` thay đổi, React sẽ coi đây là một
             component mới, hủy component cũ và tạo một cái mới. Điều này cho phép animation
             `animate-fade-in` chạy lại mỗi khi người dùng chuyển trang. */}
-        <div ref={swipeRef} key={animationKey} className="flex-1 flex flex-col overflow-y-auto animate-fade-in bg-gray-50 dark:bg-gray-950">
+        <div ref={swipeRef} key={animationKey} className="flex-1 flex flex-col overflow-y-auto animate-fade-in bg-gray-50 dark:bg-gray-950 custom-scrollbar">
           <MainContent />
         </div>
       </div>

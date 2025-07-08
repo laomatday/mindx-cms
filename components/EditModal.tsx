@@ -248,7 +248,7 @@ export const EditModal: React.FC<EditModalProps> = ({ item, type, parentId, onCl
                 </button>
                 <h2 className="text-2xl font-bold text-center mb-6 text-[#E31F26]">{getTitle(type, !!item)}</h2>
                 <form onSubmit={handleSubmit}>
-                    <div className="space-y-5 max-h-[60vh] overflow-y-auto p-2">
+                    <div className="space-y-5 max-h-[60vh] overflow-y-auto p-2 custom-scrollbar">
                         {renderFormFields()}
                     </div>
                     <div className="flex justify-end gap-4 mt-8">

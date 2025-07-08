@@ -170,7 +170,7 @@ export const CourseDetailView: React.FC<CourseDetailViewProps> = ({ course, path
     const activeLevel = sortedLevels.find(l => l.id === activeLevelId);
 
     return (
-        <main className="flex-1 p-4 sm:p-8 lg:p-12 overflow-y-auto bg-gray-50 dark:bg-gray-950">
+        <main className="flex-1 p-4 sm:p-8 lg:p-12 bg-gray-50 dark:bg-gray-950">
             <div className="max-w-7xl mx-auto">
                 <CourseDetailHeader
                     course={course}

@@ -176,7 +176,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({ onClose }) => {
       }
       if (results.length > 0) {
           return (
-              <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+              <ul className="divide-y divide-black/5 dark:divide-white/10">
                   {results.map(result => (
                       <li key={`${result.type}-${result.id}`}>
                           <button onClick={() => handleResultClick(result)} className="w-full text-left p-4 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors duration-150 flex items-start gap-4">
@@ -205,12 +205,12 @@ export const SearchModal: React.FC<SearchModalProps> = ({ onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-md flex justify-center z-50 animate-fade-in" onMouseDown={onClose}>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-md flex items-start justify-center z-50 animate-fade-in" onMouseDown={onClose}>
         <div 
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-2xl m-4 sm:m-8 relative animate-fade-in-up flex flex-col overflow-hidden" 
+            className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-xl mt-20 mx-4 mb-4 relative animate-fade-in-up flex flex-col overflow-hidden max-h-[65vh]" 
             onMouseDown={e => e.stopPropagation()}
         >
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center gap-4">
+            <div className="p-4 border-b border-black/5 dark:border-white/10 flex items-center gap-4">
                 <Search size={22} className="flex-shrink-0 opacity-60" />
                 <input
                     ref={inputRef}
@@ -228,7 +228,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({ onClose }) => {
                     <X size={24} />
                 </button>
             </div>
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto custom-scrollbar">
                 {renderContent()}
             </div>
         </div>

@@ -3,7 +3,7 @@ import { LearningPath, LevelName, DocumentCategory, LearningPathName } from './t
 // Đối tượng chứa các chuỗi văn bản (UI strings) được sử dụng trong toàn bộ ứng dụng.
 // Việc tập trung các chuỗi ở đây giúp dễ dàng quản lý, thay đổi và dịch thuật sau này.
 export const UI_STRINGS = {
-  appName: "CMS Tài liệu khóa học",
+  appName: "MindX - CMS",
   home: "Trang chủ",
   learningPaths: "Lộ trình học",
   courses: "Các khóa học",
@@ -17,7 +17,7 @@ export const UI_STRINGS = {
   adminLogin: "Đăng nhập Admin",
   username: "Email",
   password: "Mật khẩu",
-  welcomeMessage: "MindX K12 - CMS",
+  welcomeMessage: "MindX - CMS",
   selectPathHint: "Chọn một lộ trình học từ thanh bên để xem chi tiết.",
   courseContent: "Nội dung khóa học", 
   courseObjectives: "Mục tiêu khóa học",

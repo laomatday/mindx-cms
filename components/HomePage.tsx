@@ -60,7 +60,7 @@ export const HomePage: React.FC = () => {
                 <p className="mt-4 text-lg">{UI_STRINGS.homeSubtitle}</p>
                 
                 {/* Lưới hiển thị các thẻ lộ trình học */}
-                <div className="mt-12 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+                <div className="mt-12 grid gap-8" style={{gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))'}}>
                     {data.map(path => {
                         const details = pathDetails[path.name];
                         const Icon = details.icon;
