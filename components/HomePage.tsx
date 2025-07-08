@@ -1,4 +1,3 @@
-
 import React, { useContext, useCallback } from 'react';
 import { Code, Palette, Bot } from 'lucide-react';
 import { UI_STRINGS } from '../constants';
@@ -54,10 +53,11 @@ export const HomePage: React.FC = () => {
         <main className="flex-1 p-8 overflow-y-auto">
             <div className="text-center max-w-7xl mx-auto py-10">
                 {/* Tiêu đề và phụ đề của trang chủ */}
-                <h2 className="text-4xl md:text-5xl font-extrabold text-[#E31F26]">
-                    MindX CMS
+                <h2 className="text-4xl md:text-5xl font-extrabold bg-gradient-to-b from-[#E31F26] to-red-800 dark:from-red-500 dark:to-[#E31F26] bg-clip-text text-transparent leading-tight md:leading-snug">
+                    <span className="block">Trường học Công nghệ MindX</span>
+                    <span className="block text-3xl md:text-4xl">Course Management System</span>
                 </h2>
-                <p className="mt-4 text-lg">{UI_STRINGS.homeSubtitle}</p>
+                <p className="mt-4 text-lg">Hệ thống quản lý và chia sẻ tài liệu liên quan đến Khóa học tại MindX.</p>
                 
                 {/* Lưới hiển thị các thẻ lộ trình học */}
                 <div className="mt-12 grid gap-8" style={{gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))'}}>

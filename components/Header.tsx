@@ -28,11 +28,8 @@ export const Header: React.FC<HeaderProps> = memo(({ onMenuToggle, isSidebarOpen
       </div>
 
       {/* Ở giữa: Tiêu đề. flex-1 cho phép nó chiếm không gian còn lại. min-w-0 cần thiết để truncate hoạt động đúng. */}
-      <div className="flex-1 text-center min-w-0 px-2">
-          <h1 className="font-bold text-sm sm:text-base text-[#E31F26] truncate" title="MindX Technology School">
-            MindX Technology School
-          </h1>
-          <p className="text-xs opacity-80">Developed by R&D K12</p>
+      <div className="flex-1 min-w-0 px-2">
+          
       </div>
 
       {/* Bên phải: Logo. flex-none ngăn nó co lại. */}

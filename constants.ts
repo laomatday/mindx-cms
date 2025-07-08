@@ -45,8 +45,6 @@ export const UI_STRINGS = {
   imageUrl: "Hình ảnh đại diện",
   category: "Tài liệu",
   level: "Cấp độ",
-  homeTitle: "MindX Technology School - CMS",
-  homeSubtitle: "Hệ thống quản lý và chia sẻ tài liệu liên quan đến Khóa học tại MindX.",
   codingAiDesc: "Lộ trình Coding & AI giúp học sinh chinh phục *thế giới số* từ nền tảng đến nâng cao. Các em được học lập trình ứng dụng, phát triển website, khám phá trí tuệ nhân tạo và rèn luyện tư duy logic, sáng tạo. Không học để chạy theo công nghệ, học để **làm chủ** và ứng dụng nó vào cuộc sống.",
   artDesignDesc: "Art & Design là nơi học sinh phát triển óc thẩm mỹ và khả năng sáng tạo thị giác thông qua mỹ thuật truyền thống, thiết kế đồ họa, digital painting và UI/UX. Tích hợp công cụ số và ứng dụng AI, lộ trình giúp các em thể hiện **cá tính sáng tạo** và tạo nên sản phẩm nghệ thuật mang *dấu ấn cá nhân*.",
   roboticsDesc: "Với Robotics, học sinh được trải nghiệm công nghệ theo cách sinh động nhất: lắp ráp, lập trình và điều khiển robot giải quyết vấn đề thực tiễn. Khơi dậy đam mê khám phá và đưa **tư duy kỹ thuật** vào hành động.",

@@ -55,10 +55,10 @@ export const DocumentLink: React.FC<DocumentLinkProps> = memo(({ document, paren
 
   // Các lớp CSS cho thẻ `<a>` chính, được tạo kiểu như một thẻ tab/badge.
   const linkClasses = [
-      "relative flex w-full items-center gap-3 px-4 py-2.5 rounded-full text-sm font-semibold transition-all duration-200",
-      "bg-gray-100 dark:bg-gray-800",
+      "relative flex w-full items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 shadow-inner",
+      "bg-gray-100 dark:bg-gray-700",
       "text-[#313131] dark:text-gray-200",
-      "hover:bg-gray-200 dark:hover:bg-gray-700",
+      "hover:bg-gray-200 dark:hover:bg-gray-600",
       isDragging ? "opacity-40 shadow-lg" : "opacity-100",
       isDragOver ? "border-l-2 border-[#E31F26]" : ""
   ].join(" ");
