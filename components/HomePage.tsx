@@ -1,32 +1,44 @@
 import React, { useContext, useCallback } from 'react';
-import { Code, Palette, Bot } from 'lucide-react';
+import { Code, Palette, Bot, Route } from 'lucide-react';
 import { UI_STRINGS } from '../constants';
-import { LearningPathName } from '../types';
+import { DefaultLearningPathName, LearningPathName, DEFAULT_PATH_NAMES } from '../types';
 import { AppContext } from '../context/AppContext';
 import { MarkdownRenderer } from './common/MarkdownRenderer';
 
-// Đối tượng chứa thông tin chi tiết (icon, mô tả, màu sắc) cho mỗi lộ trình học.
-// Giúp code trong phần render trở nên gọn gàng và dễ quản lý hơn.
-const pathDetails = {
-    [LearningPathName.CODING_AI]: {
+// Đối tượng chứa thông tin chi tiết (icon, mô tả, màu sắc) cho mỗi lộ trình học mặc định.
+const pathDetails: Record<DefaultLearningPathName, {
+    icon: React.ElementType;
+    description: string;
+    color: string;
+    glow: string;
+}> = {
+    [DEFAULT_PATH_NAMES.CODING_AI]: {
         icon: Code,
         description: UI_STRINGS.codingAiDesc,
         color: 'text-blue-500 dark:text-blue-400',
         glow: 'hover:shadow-blue-500/20'
     },
-    [LearningPathName.ART_DESIGN]: {
+    [DEFAULT_PATH_NAMES.ART_DESIGN]: {
         icon: Palette,
         description: UI_STRINGS.artDesignDesc,
         color: 'text-orange-500 dark:text-orange-400',
         glow: 'hover:shadow-orange-500/20'
     },
-    [LearningPathName.ROBOTICS]: {
+    [DEFAULT_PATH_NAMES.ROBOTICS]: {
         icon: Bot,
         description: UI_STRINGS.roboticsDesc,
         color: 'text-green-500 dark:text-green-400',
         glow: 'hover:shadow-green-500/20'
     }
-}
+};
+
+const defaultPathDetails = {
+    icon: Route,
+    description: "Khám phá các khóa học trong lộ trình mới này.",
+    color: 'text-gray-500 dark:text-gray-400',
+    glow: 'hover:shadow-gray-500/20'
+};
+
 
 /**
  * Component HomePage là trang mặc định khi người dùng truy cập ứng dụng.
@@ -55,14 +67,14 @@ export const HomePage: React.FC = () => {
                 {/* Tiêu đề và phụ đề của trang chủ */}
                 <h2 className="text-4xl md:text-5xl font-extrabold bg-gradient-to-b from-[#E31F26] to-red-800 dark:from-red-500 dark:to-[#E31F26] bg-clip-text text-transparent leading-tight md:leading-snug">
                     <span className="block">Trường học Công nghệ MindX</span>
-                    <span className="block text-3xl md:text-4x2">Course Management System</span>
+                    <span className="block text-3xl md:text-4xl">Course Management System</span>
                 </h2>
                 <p className="mt-4 text-lg">Hệ thống quản lý và chia sẻ tài liệu liên quan đến Khóa học tại MindX.</p>
                 
                 {/* Lưới hiển thị các thẻ lộ trình học */}
                 <div className="mt-12 grid gap-8" style={{gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))'}}>
                     {data.map(path => {
-                        const details = pathDetails[path.name];
+                        const details = pathDetails[path.name as DefaultLearningPathName] || defaultPathDetails;
                         const Icon = details.icon;
                         return (
                             <button 

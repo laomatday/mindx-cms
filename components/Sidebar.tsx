@@ -1,16 +1,16 @@
 import React, { useContext, useState, useCallback, memo } from 'react';
 import { AppContext } from '../context/AppContext';
-import { LearningPath, LearningPathName } from '../types';
+import { LearningPath, LearningPathName, DEFAULT_PATH_NAMES, DefaultLearningPathName } from '../types';
 import { UI_STRINGS } from '../constants';
-import { Code, Palette, Bot, Home, Phone, Mail, Menu, Search, MessageSquareText, LogIn, LogOut } from 'lucide-react';
+import { Code, Palette, Bot, Home, Phone, Mail, Menu, Search, MessageSquareText, LogIn, LogOut, Route } from 'lucide-react';
 import { SearchModal } from './SearchModal';
 import { LoginModal } from './LoginModal';
 
 // Ánh xạ từ tên lộ trình học sang component Icon tương ứng.
-const pathIcons: Record<LearningPathName, React.ElementType> = {
-    [LearningPathName.CODING_AI]: Code,
-    [LearningPathName.ART_DESIGN]: Palette,
-    [LearningPathName.ROBOTICS]: Bot,
+const pathIcons: Record<DefaultLearningPathName, React.ElementType> = {
+    [DEFAULT_PATH_NAMES.CODING_AI]: Code,
+    [DEFAULT_PATH_NAMES.ART_DESIGN]: Palette,
+    [DEFAULT_PATH_NAMES.ROBOTICS]: Bot,
 };
 
 // Props cho một mục trong sidebar.
@@ -159,7 +159,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
 
             {/* Render các lộ trình học từ dữ liệu */}
             {data.map((path: LearningPath) => {
-                const Icon = pathIcons[path.name];
+                const Icon = pathIcons[path.name as DefaultLearningPathName] || Route;
                 return (
                     <SidebarItem
                         key={path.id}

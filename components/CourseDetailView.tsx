@@ -1,5 +1,3 @@
-
-
 import React, { useContext, useState, useCallback, memo, useRef, useEffect } from 'react';
 import { AppContext } from '../context/AppContext';
 import { Course, LearningPath, Level, EditableItem, ItemType, ParentId, Document, LevelName } from '../types';
@@ -8,6 +6,7 @@ import { DocumentLink } from './DocumentLink';
 import { Badge } from './common/Badge';
 import { Pencil, Trash2, PlusCircle, Calendar, Users, Wrench, Code, ArrowLeft, BookOpen, CheckCircle, Files, List, BarChart3, Zap, FileText } from 'lucide-react';
 import { MarkdownRenderer } from './common/MarkdownRenderer';
+import { EditableField } from './common/EditableField';
 
 // --- Reusable Child Components ---
 
@@ -64,7 +63,7 @@ interface DraggableProps {
 interface CourseDetailViewProps {
     course: Course;
     path: LearningPath;
-    onEdit: (item: EditableItem | null, type: ItemType, parentId: ParentId) => void;
+    onEdit: (item: EditableItem, type: ItemType, parentId: ParentId) => void;
     onClose: () => void;
 }
 
@@ -76,7 +75,7 @@ export const CourseDetailView: React.FC<CourseDetailViewProps> = ({ course, path
     const [dragOverDocId, setDragOverDocId] = useState<string | null>(null);
     const draggedParentIdRef = useRef<ParentId | null>(null);
 
-    const { currentUser, deleteCourse, deleteLevel, reorderDocuments } = context ?? {};
+    const { currentUser, deleteCourse, deleteLevel, reorderDocuments, updateCourse, updateLevel, showCreationWizard } = context ?? {};
     const isAdmin = currentUser?.role === 'admin';
     
     const sortedLevels = [...course.levels].sort((a,b) => Object.values(LevelName).indexOf(a.name) - Object.values(LevelName).indexOf(b.name));
@@ -210,31 +209,43 @@ export const CourseDetailView: React.FC<CourseDetailViewProps> = ({ course, path
                             {activeInfoTab === 'overview' && (
                                 <div className="space-y-8">
                                     <div>
-                                        <h3 className="font-bold text-xl flex items-center gap-3 text-[#E31F26]">
+                                        <h3 className="font-bold text-xl flex items-center gap-3 text-[#E31F26] mb-2">
                                             <BookOpen size={22} /> {UI_STRINGS.courseContent}
                                         </h3>
-                                        <MarkdownRenderer text={course.content} as="p" className="mt-2" />
+                                         {isAdmin && updateCourse ? (
+                                            <EditableField initialValue={course.content} onSave={(newValue) => updateCourse(path.id, course.id, { content: newValue })} inputComponent="textarea" />
+                                        ) : (
+                                            <div className="prose dark:prose-invert max-w-none"><MarkdownRenderer text={course.content} /></div>
+                                        )}
                                     </div>
                                     <div>
-                                        <h3 className="font-bold text-xl flex items-center gap-3 text-[#E31F26]">
+                                        <h3 className="font-bold text-xl flex items-center gap-3 text-[#E31F26] mb-2">
                                             <CheckCircle size={22} /> {UI_STRINGS.courseObjectives}
                                         </h3>
-                                        <MarkdownRenderer text={course.objectives} as="p" className="mt-2" />
+                                        {isAdmin && updateCourse ? (
+                                            <EditableField initialValue={course.objectives} onSave={(newValue) => updateCourse(path.id, course.id, { objectives: newValue })} inputComponent="textarea" />
+                                        ) : (
+                                           <div className="prose dark:prose-invert max-w-none"><MarkdownRenderer text={course.objectives} /></div>
+                                        )}
                                     </div>
                                 </div>
                             )}
                              {activeInfoTab === 'documents' && (
                                 <div>
                                     <div className="flex justify-between items-center mb-4">
-                                        <h3 className="font-bold text-xl flex items-center gap-3 text-[#E31F26]">
-                                            <Files size={22} /> {UI_STRINGS.documents}
+                                        <h3 className="font-bold text-xl flex items-center gap-3">
+                                            <Files size={22} /> Tài liệu đính kèm
                                         </h3>
-                                        {isAdmin && (
-                                            <button onClick={() => onEdit(null, 'document', { pathId: path.id, courseId: course.id })} className="flex items-center gap-1 text-sm text-[#E31F26] hover:underline">
-                                                <PlusCircle size={16}/>{UI_STRINGS.addDocument}
+                                        {isAdmin && showCreationWizard && (
+                                            <button 
+                                                onClick={() => showCreationWizard('document', { pathId: path.id, courseId: course.id })} 
+                                                className="flex items-center gap-2 text-sm font-bold text-red-600 hover:text-red-700 transition-colors"
+                                            >
+                                                <PlusCircle size={16}/>Thêm tài liệu
                                             </button>
                                         )}
                                     </div>
+                                    
                                     <div className="grid gap-3" style={{gridTemplateColumns: 'repeat(auto-fill, minmax(192px, 1fr))'}} onDrop={(e) => dragProps.handleDrop(e, { pathId: path.id, courseId: course.id })} onDragOver={(e) => e.preventDefault()}>
                                         {course.documents.map(doc => (
                                             <DocumentLink 
@@ -250,7 +261,8 @@ export const CourseDetailView: React.FC<CourseDetailViewProps> = ({ course, path
                                             />
                                         ))}
                                     </div>
-                                    {course.documents.length === 0 && <p className="text-sm opacity-60">Chưa có tài liệu nào cho khóa học này.</p>}
+                                    
+                                    {course.documents.length === 0 && !isAdmin && <p className="text-sm opacity-60 mt-4">Chưa có tài liệu nào cho khóa học này.</p>}
                                 </div>
                             )}
                         </div>
@@ -283,7 +295,7 @@ export const CourseDetailView: React.FC<CourseDetailViewProps> = ({ course, path
                             {activeLevel ? (
                                 <div className="space-y-8">
                                     <div>
-                                        <div className="flex justify-between items-start">
+                                        <div className="flex justify-between items-start mb-2">
                                             <h3 className="font-bold text-xl flex items-center gap-3 text-[#E31F26]">
                                                 <BookOpen size={20} />
                                                 {UI_STRINGS.levelContent}
@@ -295,29 +307,38 @@ export const CourseDetailView: React.FC<CourseDetailViewProps> = ({ course, path
                                                 </div>
                                             )}
                                         </div>
-                                        <MarkdownRenderer text={activeLevel.content} as="p" className="mt-2" />
+                                        {isAdmin && updateLevel ? (
+                                            <EditableField initialValue={activeLevel.content} onSave={(newValue) => updateLevel(path.id, course.id, activeLevel.id, { content: newValue })} inputComponent="textarea" />
+                                        ) : (
+                                            <div className="prose dark:prose-invert max-w-none"><MarkdownRenderer text={activeLevel.content} /></div>
+                                        )}
                                     </div>
                                     
                                     <div>
-                                      <h3 className="font-bold text-xl flex items-center gap-3 text-[#E31F26]">
+                                      <h3 className="font-bold text-xl flex items-center gap-3 text-[#E31F26] mb-2">
                                           <CheckCircle size={20} />
                                           {UI_STRINGS.levelObjectives}
                                       </h3>
-                                      <MarkdownRenderer text={activeLevel.objectives} as="p" className="mt-2" />
+                                      {isAdmin && updateLevel ? (
+                                            <EditableField initialValue={activeLevel.objectives} onSave={(newValue) => updateLevel(path.id, course.id, activeLevel.id, { objectives: newValue })} inputComponent="textarea" />
+                                        ) : (
+                                            <div className="prose dark:prose-invert max-w-none"><MarkdownRenderer text={activeLevel.objectives} /></div>
+                                        )}
                                     </div>
 
                                     {(activeLevel.documents.length > 0 || isAdmin) && (
                                         <div>
                                             <div className="flex justify-between items-center mb-4">
-                                                <h3 className="font-bold text-xl flex items-center gap-3 text-[#E31F26]">
-                                                    <Files size={20} /> {UI_STRINGS.documents}
+                                                <h3 className="font-bold text-xl flex items-center gap-3">
+                                                    <Files size={22} /> Tài liệu đính kèm
                                                 </h3>
-                                                {isAdmin && (
-                                                    <button onClick={() => onEdit(null, 'document', { pathId: path.id, courseId: course.id, levelId: activeLevel.id })} className="flex items-center gap-1 text-sm text-[#E31F26] hover:underline">
-                                                        <PlusCircle size={16}/>{UI_STRINGS.addDocument}
+                                                {isAdmin && showCreationWizard && (
+                                                    <button onClick={() => showCreationWizard('document', { pathId: path.id, courseId: course.id, levelId: activeLevel.id })} className="flex items-center gap-2 text-sm font-bold text-red-600 hover:text-red-700 transition-colors">
+                                                        <PlusCircle size={16}/>Thêm tài liệu
                                                     </button>
                                                 )}
                                             </div>
+                                            
                                             <div className="grid gap-3" style={{gridTemplateColumns: 'repeat(auto-fill, minmax(192px, 1fr))'}} onDrop={(e) => dragProps.handleDrop(e, { pathId: path.id, courseId: course.id, levelId: activeLevel.id })} onDragOver={(e) => e.preventDefault()}>
                                                 {activeLevel.documents.map(doc => (
                                                     <DocumentLink
@@ -333,6 +354,7 @@ export const CourseDetailView: React.FC<CourseDetailViewProps> = ({ course, path
                                                     />
                                                 ))}
                                             </div>
+                                            {activeLevel.documents.length === 0 && !isAdmin && <p className="text-sm opacity-60 mt-4">Chưa có tài liệu nào cho cấp độ này.</p>}
                                         </div>
                                     )}
                                 </div>
@@ -341,9 +363,9 @@ export const CourseDetailView: React.FC<CourseDetailViewProps> = ({ course, path
                             )}
                         </div>
 
-                        {isAdmin && (
+                        {isAdmin && showCreationWizard && (
                             <div className="p-4 border-t border-black/10 dark:border-white/10">
-                                <button onClick={() => onEdit(null, 'level', { pathId: path.id, courseId: course.id })} className="w-full flex items-center justify-center gap-2 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 font-bold py-2.5 px-5 rounded-lg transition-colors">
+                                <button onClick={() => showCreationWizard('level', { pathId: path.id, courseId: course.id })} className="w-full flex items-center justify-center gap-2 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 font-bold py-2.5 px-5 rounded-lg transition-colors">
                                     <PlusCircle size={20}/>
                                     {UI_STRINGS.addLevel}
                                 </button>

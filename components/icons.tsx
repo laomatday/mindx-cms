@@ -12,6 +12,7 @@ import {
   NotebookPen,
   Target,
   Book,
+  GraduationCap,
 } from 'lucide-react';
 import { DocumentCategory } from '../types';
 
@@ -29,6 +30,7 @@ const iconMap: Record<DocumentCategory, React.ElementType> = {
   [DocumentCategory.HOMEWORK]: NotebookPen,
   [DocumentCategory.CHECKPOINT]: Target,
   [DocumentCategory.STUDENT_BOOK]: Book,
+  [DocumentCategory.BAREM]: GraduationCap,
 };
 
 interface DocumentIconProps {

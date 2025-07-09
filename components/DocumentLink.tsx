@@ -1,6 +1,5 @@
-
 import React, { useContext, useCallback, memo } from 'react';
-import { Document, ParentId } from '../types';
+import { Document, ParentId, LevelName } from '../types';
 import { DocumentIcon } from './icons';
 import { DOCUMENT_NAMES, UI_STRINGS } from '../constants';
 import { AppContext } from '../context/AppContext';
@@ -17,6 +16,8 @@ interface DocumentLinkProps {
   onDragEnd?: (e: React.DragEvent) => void;
 }
 
+// A regex to robustly identify Google Drive file links
+const isGoogleDriveFileRegex = /drive\.google\.com\/(?:file\/d\/|open\?id=)/;
 
 /**
  * Component DocumentLink hiển thị một liên kết đến một tài liệu.
@@ -27,7 +28,7 @@ export const DocumentLink: React.FC<DocumentLinkProps> = memo(({ document, paren
   const context = useContext(AppContext);
   if (!context) return null;
 
-  const { currentUser, deleteDocument } = context;
+  const { currentUser, deleteDocument, viewDocument, data } = context;
   const isAdmin = currentUser?.role === 'admin';
 
   // Hàm xử lý khi admin nhấn nút xóa.
@@ -46,6 +47,47 @@ export const DocumentLink: React.FC<DocumentLinkProps> = memo(({ document, paren
     e.stopPropagation();
     onEdit(document);
   }, [onEdit, document]);
+
+  const handleClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (isAdmin && isDragging) {
+        e.preventDefault();
+        return;
+    }
+    // Check if the URL is a Google Drive file link, regardless of the stored `source`.
+    // This makes the behavior more consistent even if data is saved incorrectly.
+    if (isGoogleDriveFileRegex.test(document.url)) {
+      e.preventDefault();
+      
+      let pathName: string | undefined;
+      let courseName: string | undefined;
+      let levelName: LevelName | undefined;
+
+      if (parentId.pathId && data) {
+          const path = data.find(p => p.id === parentId.pathId);
+          pathName = path?.name;
+          if (parentId.courseId) {
+              const course = path?.courses.find(c => c.id === parentId.courseId);
+              courseName = course?.name;
+              if (parentId.levelId) {
+                  const level = course?.levels.find(l => l.id === parentId.levelId);
+                  levelName = level?.name;
+              }
+          }
+      }
+
+      viewDocument({ 
+          url: document.url, 
+          name: DOCUMENT_NAMES[document.category] || document.name,
+          pathName,
+          courseName,
+          levelName,
+      });
+    }
+    // For other links, the default behavior of the anchor tag will apply.
+  }, [isAdmin, isDragging, document, viewDocument, parentId, data]);
+
+  // Determine if the link should open in a new tab. It should if it's not a Google Drive link that we intend to embed.
+  const openInNewTab = !isGoogleDriveFileRegex.test(document.url);
 
   // Các lớp CSS cho container bọc ngoài, xử lý UI cho việc kéo-thả
   const wrapperClasses = [
@@ -73,9 +115,9 @@ export const DocumentLink: React.FC<DocumentLinkProps> = memo(({ document, paren
     >
       <a
         href={document.url}
-        target="_blank"
+        target={openInNewTab ? '_blank' : undefined}
         rel="noopener noreferrer"
-        onClick={(e) => { if (isAdmin && isDragging) e.preventDefault(); }} // Ngăn click khi đang kéo
+        onClick={handleClick}
         className={linkClasses}
       >
         {/* Biểu tượng kéo-thả, chỉ hiển thị cho admin */}

@@ -1,4 +1,3 @@
-
 import { CmsData, LearningPath, Course, Level, Document, ParentId, NormalizedCourse, NormalizedLevel } from '../types';
 import { 
     db, 
@@ -76,7 +75,7 @@ export const fetchCmsData = async (): Promise<CmsData> => {
         };
     });
     
-    docSnap.forEach(s => cmsData.entities.documents[s.id] = s.data() as Document);
+    docSnap.forEach(s => cmsData.entities.documents[s.id] = { ...s.data(), id: s.id } as Document);
 
     Object.values(cmsData.entities.levels).forEach(level => {
         if (level.courseId && cmsData.entities.courses[level.courseId]) {
@@ -104,12 +103,59 @@ export const onAuthUserChanged = (callback: (user: FirebaseUser | null) => void)
 
 // --- CRUD FUNCTIONS ---
 
-// NOTE: All 'add' functions expect a client-generated ID and use `setDoc`.
-// This is to support optimistic UI updates in the context.
-// The context should be updated to pass the generated ID to these functions.
-export const addCourseToDb = async (courseId: string, pathId: string, courseData: Omit<Course, 'id' | 'levels' | 'documents'>): Promise<void> => {
+export const addLearningPathToDb = async (pathId: string, pathData: Omit<LearningPath, 'id' | 'courses' | 'documents'>) => {
+    await setDoc(doc(db, 'learningPaths', pathId), { ...pathData, id: pathId, documentIds: [] });
+};
+
+export const updateLearningPathInDb = async (pathId: string, updates: Partial<LearningPath>) => {
+    await updateDoc(doc(db, 'learningPaths', pathId), updates);
+};
+
+export const deleteLearningPathFromDb = async (pathId: string) => {
+    const batch = writeBatch(db);
+    
+    // Xóa các document của path
+    const pathDocsQuery = query(collection(db, 'documents'), where('pathId', '==', pathId), where('courseId', '==', null));
+    const pathDocsSnap = await getDocs(pathDocsQuery);
+    pathDocsSnap.forEach(d => batch.delete(d.ref));
+    
+    // Xóa các course và sub-items của chúng
+    const coursesQuery = query(collection(db, 'courses'), where('pathId', '==', pathId));
+    const coursesSnap = await getDocs(coursesQuery);
+    for (const courseDoc of coursesSnap.docs) {
+        await deleteCourseFromDb(courseDoc.id, batch); // Sử dụng batch trong hàm xóa course
+    }
+    
+    // Xóa learning path
+    batch.delete(doc(db, 'learningPaths', pathId));
+    await batch.commit();
+};
+
+export const addCourseAndDocumentsToDb = async (
+    courseId: string, 
+    pathId: string, 
+    courseData: Omit<Course, 'id' | 'levels'>,
+    documents: Document[]
+): Promise<void> => {
+    const batch = writeBatch(db);
+    
+    const { documents: _docs, ...restOfCourseData } = courseData;
+
     const courseRef = doc(db, 'courses', courseId);
-    await setDoc(courseRef, { ...courseData, pathId, id: courseId });
+    batch.set(courseRef, { 
+        ...restOfCourseData, 
+        pathId, 
+        id: courseId, 
+        levelIds: [],
+        documentIds: documents.map(d => d.id) 
+    });
+
+    documents.forEach(document => {
+        const docRef = doc(db, 'documents', document.id);
+        batch.set(docRef, { ...document, courseId, pathId });
+    });
+
+    await batch.commit();
 };
 
 export const updateCourseInDb = async (courseId: string, updates: Partial<Course>): Promise<void> => {
@@ -117,42 +163,59 @@ export const updateCourseInDb = async (courseId: string, updates: Partial<Course
     await updateDoc(courseRef, updates);
 };
 
-export const deleteCourseFromDb = async (courseId: string): Promise<void> => {
-    const batch = writeBatch(db);
+export const deleteCourseFromDb = async (courseId: string, existingBatch?: ReturnType<typeof writeBatch>): Promise<void> => {
+    const batch = existingBatch || writeBatch(db);
+
     const docsQuery = query(collection(db, 'documents'), where('courseId', '==', courseId));
     const docsSnap = await getDocs(docsQuery);
     docsSnap.forEach(d => batch.delete(d.ref));
     
     const levelsQuery = query(collection(db, 'levels'), where('courseId', '==', courseId));
     const levelsSnap = await getDocs(levelsQuery);
-    levelsSnap.forEach(l => batch.delete(l.ref));
+    for (const levelDoc of levelsSnap.docs) {
+       await deleteLevelFromDb(levelDoc.id, batch);
+    }
 
     batch.delete(doc(db, 'courses', courseId));
-    await batch.commit();
+    
+    if (!existingBatch) {
+        await batch.commit();
+    }
 };
 
-export const addCourseWithLevelsToDb = async (
-    courseId: string, 
-    pathId: string, 
-    courseData: Omit<Course, 'id' | 'levels' | 'documents'>,
-    levels: { id: string; data: Omit<Level, 'id' | 'documents'>; }[]
+
+export const addLevelAndDocumentsToDb = async (
+    levelId: string,
+    courseId: string,
+    levelData: Omit<Level, 'id'>,
+    documents: Document[]
 ): Promise<void> => {
     const batch = writeBatch(db);
-
+    const { documents: _docs, ...restOfLevelData } = levelData;
     const courseRef = doc(db, 'courses', courseId);
-    batch.set(courseRef, { ...courseData, pathId, id: courseId });
+    const courseSnap = await getDoc(courseRef);
+    const course = courseSnap.data();
+
+    if (!course) throw new Error("Course not found!");
     
-    levels.forEach(level => {
-        const levelRef = doc(db, 'levels', level.id);
-        batch.set(levelRef, { ...level.data, courseId, id: level.id });
+    const levelRef = doc(db, 'levels', levelId);
+    batch.set(levelRef, { 
+        ...restOfLevelData, 
+        courseId, 
+        id: levelId, 
+        documentIds: documents.map(d => d.id) 
+    });
+
+    documents.forEach(document => {
+        const docRef = doc(db, 'documents', document.id);
+        batch.set(docRef, { ...document, levelId, courseId, pathId: course.pathId });
+    });
+
+    batch.update(courseRef, {
+        levelIds: [...(course.levelIds || []), levelId]
     });
 
     await batch.commit();
-};
-
-export const addLevelToDb = async (levelId: string, courseId: string, levelData: Omit<Level, 'id' | 'documents'>): Promise<void> => {
-    const levelRef = doc(db, 'levels', levelId);
-    await setDoc(levelRef, { ...levelData, courseId, id: levelId });
 };
 
 export const updateLevelInDb = async (levelId: string, updates: Partial<Level>): Promise<void> => {
@@ -160,13 +223,36 @@ export const updateLevelInDb = async (levelId: string, updates: Partial<Level>):
     await updateDoc(levelRef, updates);
 };
 
-export const deleteLevelFromDb = async (levelId: string): Promise<void> => {
-    const batch = writeBatch(db);
-    const docsQuery = query(collection(db, 'documents'), where('levelId', '==', levelId));
-    const docsSnap = await getDocs(docsQuery);
-    docsSnap.forEach(d => batch.delete(d.ref));
-    batch.delete(doc(db, 'levels', levelId));
-    await batch.commit();
+export const deleteLevelFromDb = async (levelId: string, existingBatch?: ReturnType<typeof writeBatch>): Promise<void> => {
+    const batch = existingBatch || writeBatch(db);
+    
+    const levelRef = doc(db, 'levels', levelId);
+    const levelSnap = await getDoc(levelRef);
+    const levelData = levelSnap.data();
+
+    if (levelData) {
+        // Xóa documents của level
+        const docsQuery = query(collection(db, 'documents'), where('levelId', '==', levelId));
+        const docsSnap = await getDocs(docsQuery);
+        docsSnap.forEach(d => batch.delete(d.ref));
+
+        // Xóa level
+        batch.delete(levelRef);
+        
+        // Cập nhật course
+        const courseRef = doc(db, 'courses', levelData.courseId);
+        const courseSnap = await getDoc(courseRef);
+        const courseData = courseSnap.data();
+        if (courseData) {
+            batch.update(courseRef, {
+                levelIds: courseData.levelIds.filter((id: string) => id !== levelId)
+            });
+        }
+    }
+    
+    if (!existingBatch) {
+        await batch.commit();
+    }
 };
 
 export const addDocumentToDb = async (docId: string, parentId: ParentId, docData: Omit<Document, 'id'>): Promise<void> => {
@@ -191,7 +277,7 @@ export const reorderDocumentsInDb = async (parentId: ParentId, orderedIds: strin
         parentRef = doc(db, 'levels', levelId);
     } else if (courseId) {
         parentRef = doc(db, 'courses', courseId);
-    } else {
+    } else if (pathId){
         parentRef = doc(db, 'learningPaths', pathId);
     }
 

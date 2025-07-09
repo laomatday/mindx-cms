@@ -1,6 +1,5 @@
-
 import React, { createContext, useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
-import { AppContextType, User, LearningPath, Course, Level, Document, ParentId, CmsData, NormalizedLevel, NormalizedCourse, NormalizedLearningPath, LevelName } from '../types';
+import { AppContextType, User, LearningPath, Course, Level, Document, ParentId, CmsData, NormalizedLevel, NormalizedCourse, NormalizedLearningPath, CreationState, CreationType, EditableItem, LevelName } from '../types';
 import * as api from '../api/client';
 
 // Tạo Context cho ứng dụng.
@@ -71,6 +70,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const [toast, setToast] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [cmsData, setCmsData] = useState<CmsData>(EMPTY_CMS_DATA);
+  const [activeDocument, setActiveDocument] = useState<{ url: string; name: string; pathName?: string; courseName?: string; levelName?: LevelName } | null>(null);
+  const [creationState, setCreationState] = useState<CreationState | null>(null);
   
   // State for navigation history
   const [history, setHistory] = useState<{ pathId: string | null, courseId: string | null }[]>([{ pathId: localStorage.getItem('selectedPathId'), courseId: localStorage.getItem('selectedCourseId') }]);
@@ -83,6 +84,21 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const showToast = useCallback((message: string) => {
     setToast(message);
     setTimeout(() => setToast(null), 4000);
+  }, []);
+
+  const viewDocument = useCallback((doc: { url: string; name: string; pathName?: string; courseName?: string; levelName?: LevelName }) => {
+    setActiveDocument(doc);
+  }, []);
+
+  const closeDocument = useCallback(() => {
+    setActiveDocument(null);
+  }, []);
+
+  const showCreationWizard = useCallback((type: CreationType, parentId: ParentId, itemToEdit?: EditableItem) => {
+    setCreationState({ type, parentId, itemToEdit });
+  }, []);
+  const hideCreationWizard = useCallback(() => {
+    setCreationState(null);
   }, []);
 
   useEffect(() => {
@@ -123,15 +139,20 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
   const navigate = useCallback((pathId: string | null, courseId: string | null) => {
     const currentState = history[historyIndex];
-    // Prevent navigating to the exact same state
     if (currentState && currentState.pathId === pathId && currentState.courseId === courseId) {
         return;
     }
+    
+    // When navigating the main hierarchy, always close any open document.
+    if (activeDocument) {
+        setActiveDocument(null);
+    }
+    
     const newHistory = history.slice(0, historyIndex + 1);
     newHistory.push({ pathId, courseId });
     setHistory(newHistory);
     setHistoryIndex(newHistory.length - 1);
-  }, [history, historyIndex]);
+  }, [history, historyIndex, activeDocument]);
 
   useEffect(() => {
     if (loading) return;
@@ -159,14 +180,21 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   }, [selectedPathId, selectedCourseId]);
 
   const goBack = useCallback(() => {
-    setHistoryIndex(prev => Math.max(0, prev - 1));
-  }, []);
+    if (activeDocument) {
+        // If a document is open, the "back" action should close it first.
+        closeDocument();
+    } else if (historyIndex > 0) {
+        // Otherwise, go back in the navigation history.
+        setHistoryIndex(prev => prev - 1);
+    }
+  }, [activeDocument, historyIndex, closeDocument]);
+
 
   const goForward = useCallback(() => {
     setHistoryIndex(prev => Math.min(history.length - 1, prev + 1));
   }, [history.length]);
 
-  const canGoBack = historyIndex > 0;
+  const canGoBack = activeDocument !== null || historyIndex > 0;
   const canGoForward = historyIndex < history.length - 1;
 
   const login = useCallback(async (email: string, pass: string): Promise<boolean> => {
@@ -208,48 +236,92 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     }
   }, [cmsData, showToast]);
 
-  const addCourse = useCallback(async (pathId: string, courseData: Omit<Course, 'id' | 'levels' | 'documents'>) => {
+  const addLearningPath = useCallback(async (pathData: Omit<LearningPath, 'id' | 'courses' | 'documents'>) => {
+    const newPathId = generateId('lp');
+    await optimisticUpdate(
+      state => {
+        const newPath: NormalizedLearningPath = { ...pathData, id: newPathId, courseIds: [], documentIds: [] };
+        state.entities.learningPaths[newPathId] = newPath;
+        state.root.push(newPathId);
+        return state;
+      },
+      () => api.addLearningPathToDb(newPathId, pathData),
+      'Thêm lộ trình học thành công!',
+      'Không thể thêm lộ trình học'
+    );
+  }, [optimisticUpdate]);
+
+  const updateLearningPath = useCallback(async (pathId: string, updates: Partial<LearningPath>) => {
+    await optimisticUpdate(
+      state => {
+        const path = state.entities.learningPaths[pathId];
+        if (path) state.entities.learningPaths[pathId] = { ...path, ...updates };
+        return state;
+      },
+      () => api.updateLearningPathInDb(pathId, updates),
+      'Cập nhật lộ trình học thành công!',
+      'Không thể cập nhật lộ trình học'
+    );
+  }, [optimisticUpdate]);
+
+  const deleteLearningPath = useCallback(async (pathId: string) => {
+    await optimisticUpdate(
+      state => {
+        const pathToDelete = state.entities.learningPaths[pathId];
+        if (!pathToDelete) return state;
+
+        pathToDelete.courseIds.forEach(courseId => {
+            const courseToDelete = state.entities.courses[courseId];
+            if (!courseToDelete) return;
+
+            courseToDelete.levelIds.forEach(levelId => {
+              state.entities.levels[levelId]?.documentIds.forEach(docId => delete state.entities.documents[docId]);
+              delete state.entities.levels[levelId];
+            });
+            courseToDelete.documentIds.forEach(docId => delete state.entities.documents[docId]);
+            delete state.entities.courses[courseId];
+        });
+        
+        pathToDelete.documentIds.forEach(docId => delete state.entities.documents[docId]);
+
+        delete state.entities.learningPaths[pathId];
+        state.root = state.root.filter(id => id !== pathId);
+        
+        return state;
+      },
+      () => api.deleteLearningPathFromDb(pathId),
+      'Xóa lộ trình học thành công!',
+      'Không thể xóa lộ trình học'
+    );
+  }, [optimisticUpdate]);
+
+  const addCourse = useCallback(async (pathId: string, courseData: Omit<Course, 'id' | 'levels'>) => {
     const newCourseId = generateId('c');
-    
-    const defaultLevelsData = [
-      { name: LevelName.BASIC, content: 'Nội dung cấp độ cơ bản.', objectives: 'Mục tiêu cấp độ cơ bản.' },
-      { name: LevelName.ADVANCED, content: 'Nội dung cấp độ nâng cao.', objectives: 'Mục tiêu cấp độ nâng cao.' },
-      { name: LevelName.INTENSIVE, content: 'Nội dung cấp độ chuyên sâu.', objectives: 'Mục tiêu cấp độ chuyên sâu.' }
-    ];
-
-    const newLevels = defaultLevelsData.map(data => ({
-      id: generateId('l'),
-      data: data
-    }));
-
-    const newLevelIds = newLevels.map(l => l.id);
+    const documents = courseData.documents || [];
+    const newDocuments = documents.map(doc => ({ ...doc, id: generateId('doc')}));
+    const newDocIds = newDocuments.map(d => d.id);
 
     await optimisticUpdate(
       state => {
+        const { documents: _docs, ...restOfCourseData } = courseData;
         const newCourse: NormalizedCourse = { 
-          ...courseData, 
+          ...restOfCourseData,
           id: newCourseId, 
           pathId: pathId, 
-          levelIds: newLevelIds, 
-          documentIds: [] 
+          levelIds: [], // Start with no levels
+          documentIds: newDocIds
         };
         state.entities.courses[newCourse.id] = newCourse;
         state.entities.learningPaths[pathId]?.courseIds.push(newCourse.id);
 
-        newLevels.forEach(level => {
-          const newLevel: NormalizedLevel = {
-            ...level.data,
-            id: level.id,
-            courseId: newCourseId,
-            documentIds: []
-          };
-          state.entities.levels[level.id] = newLevel;
+        newDocuments.forEach(doc => {
+            state.entities.documents[doc.id] = doc;
         });
 
         return state;
       },
-      () => api.addCourseWithLevelsToDb(newCourseId, pathId, courseData, newLevels),
-      'Thêm khóa học và các cấp độ mặc định thành công!',
+      () => api.addCourseAndDocumentsToDb(newCourseId, pathId, courseData, newDocuments),
+      'Thêm khóa học thành công!',
       'Không thể thêm khóa học'
     );
   }, [optimisticUpdate]);
@@ -291,16 +363,31 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     );
   }, [optimisticUpdate]);
   
-  const addLevel = useCallback(async (pathId: string, courseId: string, levelData: Omit<Level, 'id' | 'documents'>) => {
+  const addLevel = useCallback(async (pathId: string, courseId: string, levelData: Omit<Level, 'id'>) => {
     const newLevelId = generateId('l');
+    const documents = levelData.documents || [];
+    const newDocuments = documents.map(doc => ({ ...doc, id: generateId('doc')}));
+    const newDocIds = newDocuments.map(d => d.id);
+
     await optimisticUpdate(
       state => {
-        const newLevel: NormalizedLevel = { ...levelData, id: newLevelId, courseId: courseId, documentIds: [] };
+        const { documents: _docs, ...restOfLevelData } = levelData;
+        const newLevel: NormalizedLevel = { 
+          ...restOfLevelData,
+          id: newLevelId, 
+          courseId: courseId, 
+          documentIds: newDocIds
+        };
         state.entities.levels[newLevel.id] = newLevel;
         state.entities.courses[courseId]?.levelIds.push(newLevel.id);
+        
+        newDocuments.forEach(doc => {
+            state.entities.documents[doc.id] = doc;
+        });
+
         return state;
       },
-      () => api.addLevelToDb(newLevelId, courseId, levelData),
+      () => api.addLevelAndDocumentsToDb(newLevelId, courseId, levelData, newDocuments),
       'Thêm cấp độ thành công!',
       'Không thể thêm cấp độ'
     );
@@ -317,7 +404,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       'Cập nhật cấp độ thành công!',
       'Không thể cập nhật cấp độ'
     );
-  }, [optimisticUpdate]);
+}, [optimisticUpdate]);
 
   const deleteLevel = useCallback(async (pathId: string, courseId: string, levelId: string) => {
     await optimisticUpdate(
@@ -344,7 +431,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     
     if (levelId && courseId) parent = currentState.entities.levels[levelId];
     else if (courseId) parent = currentState.entities.courses[courseId];
-    else parent = currentState.entities.learningPaths[pathId];
+    else if (pathId) parent = currentState.entities.learningPaths[pathId];
 
     const newDocIds = [...(parent?.documentIds || []), newDocId];
     
@@ -353,18 +440,20 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         const newDocument: Document = { ...documentData, id: newDocId };
         state.entities.documents[newDocument.id] = newDocument;
         if (levelId && courseId) {
-          state.entities.levels[levelId]?.documentIds.push(newDocument.id);
+          state.entities.levels[levelId]!.documentIds.push(newDocument.id);
         } else if (courseId) {
-          state.entities.courses[courseId]?.documentIds.push(newDocument.id);
-        } else {
-          state.entities.learningPaths[pathId]?.documentIds.push(newDocument.id);
+          state.entities.courses[courseId]!.documentIds.push(newDocument.id);
+        } else if (pathId) {
+          state.entities.learningPaths[pathId]!.documentIds.push(newDocument.id);
         }
         return state;
       },
       async () => {
         // Cả hai thao tác phải được thực hiện: thêm document và cập nhật mảng IDs của parent
         await api.addDocumentToDb(newDocId, parentId, documentData);
-        await api.reorderDocumentsInDb(parentId, newDocIds);
+        if (parentId.pathId || parentId.courseId || parentId.levelId) {
+           await api.reorderDocumentsInDb(parentId, newDocIds);
+        }
       },
       'Thêm tài liệu thành công!',
       'Không thể thêm tài liệu'
@@ -391,7 +480,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     
     if (levelId && courseId) parent = currentState.entities.levels[levelId];
     else if (courseId) parent = currentState.entities.courses[courseId];
-    else parent = currentState.entities.learningPaths[pathId];
+    else if (pathId) parent = currentState.entities.learningPaths[pathId];
 
     const newDocIds = parent?.documentIds.filter(id => id !== documentId) || [];
 
@@ -403,7 +492,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         } else if (courseId) {
           const course = state.entities.courses[courseId];
           if (course) course.documentIds = course.documentIds.filter(id => id !== documentId);
-        } else {
+        } else if (pathId) {
           const path = state.entities.learningPaths[pathId];
           if (path) path.documentIds = path.documentIds.filter(id => id !== documentId);
         }
@@ -412,7 +501,9 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       },
       async () => {
         await api.deleteDocumentFromDb(documentId);
-        await api.reorderDocumentsInDb(parentId, newDocIds);
+        if (parentId.pathId || parentId.courseId || parentId.levelId) {
+          await api.reorderDocumentsInDb(parentId, newDocIds);
+        }
       },
       'Xóa tài liệu thành công!',
       'Không thể xóa tài liệu'
@@ -429,7 +520,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
                 parent = state.entities.levels[levelId];
             } else if (courseId) {
                 parent = state.entities.courses[courseId];
-            } else {
+            } else if (pathId) {
                 parent = state.entities.learningPaths[pathId];
             }
             if (parent) {
@@ -455,6 +546,9 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     goForward,
     canGoBack,
     canGoForward,
+    addLearningPath,
+    updateLearningPath,
+    deleteLearningPath,
     addCourse,
     updateCourse,
     deleteCourse,
@@ -468,6 +562,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     toast,
     showToast,
     loading,
+    activeDocument,
+    viewDocument,
+    closeDocument,
+    creationState,
+    showCreationWizard,
+    hideCreationWizard,
   };
 
   return <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>;

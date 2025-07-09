@@ -1,9 +1,13 @@
 // Định nghĩa các lộ trình học (Learning Path) dưới dạng enum để đảm bảo tính nhất quán.
-export enum LearningPathName {
-  CODING_AI = 'Coding & AI',
-  ART_DESIGN = 'Art & Design',
-  ROBOTICS = 'Robotics',
-}
+export const DEFAULT_PATH_NAMES = {
+  CODING_AI: 'Coding & AI',
+  ART_DESIGN: 'Art & Design',
+  ROBOTICS: 'Robotics',
+} as const;
+
+export type DefaultLearningPathName = typeof DEFAULT_PATH_NAMES[keyof typeof DEFAULT_PATH_NAMES];
+export type LearningPathName = DefaultLearningPathName | string;
+
 
 // Định nghĩa các cấp độ học (Level)
 export enum LevelName {
@@ -24,6 +28,7 @@ export enum DocumentCategory {
   HOMEWORK = 'Homework',
   CHECKPOINT = 'Checkpoint',
   STUDENT_BOOK = 'Student Book',
+  BAREM = 'Barem',
 }
 
 // --- Các Interface cho cấu trúc dữ liệu lồng nhau (dùng cho UI) ---
@@ -34,6 +39,7 @@ export interface Document {
   category: DocumentCategory;
   name: string;
   url: string;
+  source: 'google_drive_pdf' | 'office_365'; // Nguồn của tài liệu
   pathId?: string;
   courseId?: string;
   levelId?: string;
@@ -85,7 +91,7 @@ export type EditableItem = Course | Level | Document | LearningPath;
 // Type xác định loại của một mục đang được chỉnh sửa
 export type ItemType = 'course' | 'level' | 'document' | 'learningPath';
 // Type chứa ID của các mục cha, giúp xác định vị trí của một mục trong cây dữ liệu
-export type ParentId = {pathId: string, courseId?: string, levelId?: string};
+export type ParentId = {pathId?: string, courseId?: string, levelId?: string};
 
 // Interface cho kết quả tìm kiếm
 export interface SearchResult {
@@ -96,6 +102,12 @@ export interface SearchResult {
   pathId: string;
   courseId?: string;
   url?: string;
+  source?: 'google_drive_pdf' | 'office_365';
+  document?: {
+      url: string;
+      name: string;
+      category: DocumentCategory;
+  }
 }
 
 // --- Các Interface cho cấu trúc dữ liệu được chuẩn hóa (Normalized) ---
@@ -130,6 +142,14 @@ export interface CmsData {
   root: string[]; // Mảng chứa ID của các learningPath ở cấp cao nhất
 }
 
+export type CreationType = 'learningPath' | 'course' | 'level' | 'document';
+
+export interface CreationState {
+  type: CreationType;
+  parentId: ParentId;
+  itemToEdit?: EditableItem;
+}
+
 // Interface định nghĩa các giá trị và hàm mà AppContext sẽ cung cấp cho toàn ứng dụng
 export interface AppContextType {
   data: LearningPath[]; // Dữ liệu đã được tái cấu trúc (denormalized) để UI sử dụng
@@ -145,11 +165,15 @@ export interface AppContextType {
   canGoForward: boolean;
 
   // Các hàm CRUD (Create, Read, Update, Delete)
-  addCourse: (pathId: string, courseData: Omit<Course, 'id' | 'levels' | 'documents'>) => Promise<void>;
+  addLearningPath: (pathData: Omit<LearningPath, 'id' | 'courses' | 'documents'>) => Promise<void>;
+  updateLearningPath: (pathId: string, updates: Partial<LearningPath>) => Promise<void>;
+  deleteLearningPath: (pathId: string) => Promise<void>;
+
+  addCourse: (pathId: string, courseData: Omit<Course, 'id' | 'levels'>) => Promise<void>;
   updateCourse: (pathId: string, courseId: string, updates: Partial<Course>) => Promise<void>;
   deleteCourse: (pathId: string, courseId: string) => Promise<void>;
   
-  addLevel: (pathId: string, courseId: string, levelData: Omit<Level, 'id' | 'documents'>) => Promise<void>;
+  addLevel: (pathId: string, courseId: string, levelData: Omit<Level, 'id'>) => Promise<void>;
   updateLevel: (pathId: string, courseId: string, levelId: string, updates: Partial<Level>) => Promise<void>;
   deleteLevel: (pathId: string, courseId: string, levelId: string) => Promise<void>;
   
@@ -164,4 +188,14 @@ export interface AppContextType {
   
   // Trạng thái tải dữ liệu ban đầu của ứng dụng
   loading?: boolean;
+
+  // Document Viewer
+  activeDocument: { url: string; name: string; pathName?: string; courseName?: string; levelName?: LevelName } | null;
+  viewDocument: (doc: { url: string; name: string; pathName?: string; courseName?: string; levelName?: LevelName }) => void;
+  closeDocument: () => void;
+  
+  // Creation Wizard
+  creationState: CreationState | null;
+  showCreationWizard: (type: CreationType, parentId: ParentId, itemToEdit?: EditableItem) => void;
+  hideCreationWizard: () => void;
 }

@@ -74,4 +74,23 @@ export const DOCUMENT_NAMES: { [key in DocumentCategory]: string } = {
   [DocumentCategory.HOMEWORK]: 'Homework',
   [DocumentCategory.CHECKPOINT]: 'Checkpoint',
   [DocumentCategory.STUDENT_BOOK]: 'Student Book',
+  [DocumentCategory.BAREM]: 'Barem',
 };
+
+// Các loại tài liệu chỉ được phép cho Khóa học
+export const COURSE_DOCUMENT_CATEGORIES: DocumentCategory[] = [
+  DocumentCategory.SYLLABUS,
+  DocumentCategory.TRIAL,
+];
+
+// Các loại tài liệu chỉ được phép cho Cấp độ
+export const LEVEL_DOCUMENT_CATEGORIES: DocumentCategory[] = [
+  DocumentCategory.LESSON_PLAN,
+  DocumentCategory.TEACHING_GUIDE,
+  DocumentCategory.SLIDE,
+  DocumentCategory.PROJECT,
+  DocumentCategory.HOMEWORK,
+  DocumentCategory.CHECKPOINT,
+  DocumentCategory.BAREM,
+  DocumentCategory.STUDENT_BOOK,
+];

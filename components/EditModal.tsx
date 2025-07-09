@@ -12,10 +12,11 @@ interface EditModalProps {
     onClose: () => void; // Hàm callback khi đóng modal.
 }
 
-// Hàm helper để lấy tiêu đề cho modal (ví dụ: "Thêm khóa học", "Chỉnh sửa cấp độ").
-const getTitle = (type: ItemType, isEditing: boolean): string => {
-    const action = isEditing ? UI_STRINGS.edit : UI_STRINGS.add;
+// Hàm helper để lấy tiêu đề cho modal (ví dụ: "Chỉnh sửa khóa học").
+const getTitle = (type: ItemType): string => {
+    const action = UI_STRINGS.edit;
     switch(type) {
+        case 'learningPath': return `${action} Lộ trình học`;
         case 'course': return `${action} ${UI_STRINGS.courses}`;
         case 'level': return `${action} ${UI_STRINGS.levels}`;
         case 'document': return `${action} ${UI_STRINGS.documents}`;
@@ -61,7 +62,7 @@ const TextareaField = memo((props: {name: string, label: string, value: string, 
         </div>
     );
 });
-const SelectField = memo((props: {name: string, label: string, value: string, onChange: any, options: string[], optionNames?: {[key:string]: string}, required?: boolean}) => {
+const SelectField = memo((props: {name: string, label: string, value: string, onChange: any, options: string[] | {value: string, label: string}[], optionNames?: {[key:string]: string}, required?: boolean}) => {
     const { name, label, value, onChange, options, optionNames, required = false } = props;
     return (
         <div className="relative">
@@ -74,11 +75,15 @@ const SelectField = memo((props: {name: string, label: string, value: string, on
                 required={required}
                 className={`${commonInputClass} appearance-none pr-10`}
             >
-                {options.map(option => (
-                    <option key={option} value={option}>
-                        {optionNames?.[option] || option}
-                    </option>
-                ))}
+                {options.map(option => {
+                    const optionValue = typeof option === 'string' ? option : option.value;
+                    const optionLabel = typeof option === 'string' ? (optionNames?.[option] || option) : option.label;
+                    return (
+                        <option key={optionValue} value={optionValue}>
+                            {optionLabel}
+                        </option>
+                    )
+                })}
             </select>
             <ChevronDown className="absolute right-3 top-10 h-5 w-5 text-gray-400 pointer-events-none" />
         </div>
@@ -87,101 +92,85 @@ const SelectField = memo((props: {name: string, label: string, value: string, on
 
 
 /**
- * Component EditModal là một cửa sổ modal đa năng dùng để Thêm hoặc Sửa
- * các mục như Khóa học, Cấp độ, và Tài liệu.
+ * Component EditModal là một cửa sổ modal đa năng dùng để CHỈNH SỬA
+ * các mục như Lộ trình học, Khóa học, Cấp độ, và Tài liệu.
+ * Chức năng TẠO MỚI đã được chuyển sang CreationWizard.
  */
 export const EditModal: React.FC<EditModalProps> = ({ item, type, parentId, onClose }) => {
-    // State để lưu trữ dữ liệu của form.
     const [formData, setFormData] = useState<any>({});
     const context = useContext(AppContext);
     
-    // Khóa cuộn của body khi modal mở.
     useBodyScrollLock();
+    
+    // Modal này chỉ dùng để chỉnh sửa.
+    const isEditing = !!item;
 
-    // `useEffect` để khởi tạo `formData` khi component được mount hoặc props `item`/`type` thay đổi.
     useEffect(() => {
-        if (item) { // Trường hợp Sửa: điền dữ liệu từ `item` vào form.
-            if (type === 'course') {
-                // Chuyển đổi mảng `tools` thành chuỗi để hiển thị trong input.
-                setFormData({...item, tools: (item as Course).tools?.join(', ') || ''});
-            } else {
-                setFormData(item);
-            }
-        } else { // Trường hợp Thêm: khởi tạo giá trị mặc định cho form.
-            const defaults: any = { name: '', content: '', objectives: '', url: '' };
-            if (type === 'document') defaults.category = DocumentCategory.LESSON_PLAN;
-            if (type === 'level') defaults.name = LevelName.BASIC;
-            if (type === 'course') {
-                defaults.year = '';
-                defaults.ageGroup = '';
-                defaults.language = '';
-                defaults.tools = '';
-                defaults.imageUrl = '';
-            }
-            setFormData(defaults);
+        if (item) {
+             // Chuyển đổi mảng tools thành chuỗi để hiển thị trong input
+            const processedItem = type === 'course' ? {...item, tools: (item as Course).tools?.join(', ') || ''} : item;
+            setFormData(processedItem);
         }
     }, [item, type]);
 
-    if (!context) return null;
+    if (!context || !isEditing) return null;
 
-    const { addCourse, updateCourse, addLevel, updateLevel, addDocument, updateDocument } = context;
+    const { updateLearningPath, updateCourse, updateLevel, updateDocument } = context;
 
-    // Hàm xử lý khi người dùng thay đổi giá trị trong các trường input.
     const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setFormData((prev: any) => ({ ...prev, [name]: value }));
     }, []);
 
-    // Hàm xử lý khi người dùng chọn một file ảnh.
     const handleImageChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
             const reader = new FileReader();
             reader.onloadend = () => {
-                // Chuyển đổi ảnh thành chuỗi base64 và lưu vào state.
                 setFormData((prev: any) => ({ ...prev, imageUrl: reader.result as string }));
             };
             reader.readAsDataURL(file);
         }
     }, []);
 
-    // Hàm xử lý khi người dùng gửi form.
     const handleSubmit = useCallback((e: React.FormEvent) => {
         e.preventDefault();
-        const isEditing = !!item;
         
+        // Xử lý dữ liệu trước khi gửi đi
         const submissionData = { ...formData };
-
-        // Xử lý dữ liệu trước khi gửi đi.
         if (type === 'course') {
-            // Chuyển chuỗi `tools` trở lại thành mảng.
+            // Chuyển chuỗi tools trở lại thành mảng
             if (submissionData.tools && typeof submissionData.tools === 'string') {
                 submissionData.tools = submissionData.tools.split(',').map((t: string) => t.trim()).filter(Boolean);
             }
-            // Chuyển `year` sang dạng số.
             if (submissionData.year) {
                 submissionData.year = parseInt(String(submissionData.year), 10);
             }
         }
 
-        // Gọi hàm CRUD tương ứng từ context.
+        // Gọi hàm update tương ứng từ context
         switch(type) {
+            case 'learningPath':
+                updateLearningPath(item!.id, submissionData);
+                break;
             case 'course':
-                isEditing ? updateCourse(parentId.pathId, item!.id, submissionData) : addCourse(parentId.pathId, submissionData);
+                updateCourse(parentId.pathId!, item!.id, submissionData);
                 break;
             case 'level':
-                 isEditing ? updateLevel(parentId.pathId, parentId.courseId!, item!.id, submissionData) : addLevel(parentId.pathId, parentId.courseId!, submissionData);
+                 updateLevel(parentId.pathId!, parentId.courseId!, item!.id, submissionData);
                 break;
             case 'document':
-                 isEditing ? updateDocument(parentId, item!.id, submissionData) : addDocument(parentId, submissionData);
+                 updateDocument(parentId, item!.id, submissionData);
                 break;
         }
-        onClose(); // Đóng modal sau khi gửi.
-    }, [formData, item, type, parentId, addCourse, updateCourse, addLevel, updateLevel, addDocument, updateDocument, onClose]);
+        onClose();
+    }, [formData, item, type, parentId, updateLearningPath, updateCourse, updateLevel, updateDocument, onClose]);
     
-    // Hàm render các trường của form tùy thuộc vào `type`.
     const renderFormFields = () => {
         switch(type) {
+            case 'learningPath': return (
+                 <InputField name="name" label={UI_STRINGS.name} value={formData.name} onChange={handleChange} required />
+            );
             case 'course': return (
                 <>
                     <InputField name="name" label={UI_STRINGS.name} value={formData.name} onChange={handleChange} required />
@@ -200,38 +189,25 @@ export const EditModal: React.FC<EditModalProps> = ({ item, type, parentId, onCl
                                 {formData.imageUrl ? <img src={formData.imageUrl} alt="Preview" className="w-full h-full object-cover" /> : <ImageIcon size={32} className="text-gray-400" />}
                             </div>
                             <label htmlFor="image-upload" className="cursor-pointer bg-white dark:bg-gray-700 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-600">
-                                <span>Upload a file</span>
+                                <span>Tải ảnh lên</span>
                                 <input id="image-upload" name="image-upload" type="file" className="sr-only" accept="image/*" onChange={handleImageChange} />
                             </label>
                         </div>
+                         <InputField name="imageUrl" label={`${UI_STRINGS.imageUrl} (URL)`} value={formData.imageUrl} onChange={handleChange} />
                     </div>
                 </>
             );
             case 'level': return (
                 <>
-                    <SelectField
-                        name="name"
-                        label={UI_STRINGS.level}
-                        value={formData.name}
-                        onChange={handleChange}
-                        options={Object.values(LevelName)}
-                        required
-                    />
+                    <SelectField name="name" label={UI_STRINGS.level} value={formData.name} onChange={handleChange} options={Object.values(LevelName)} required />
                     <TextareaField name="content" label={UI_STRINGS.levelContent} value={formData.content} onChange={handleChange} required />
                     <TextareaField name="objectives" label={UI_STRINGS.levelObjectives} value={formData.objectives} onChange={handleChange} required />
                 </>
             );
             case 'document': return (
                 <>
-                    <SelectField
-                        name="category"
-                        label={UI_STRINGS.category}
-                        value={formData.category}
-                        onChange={handleChange}
-                        options={Object.values(DocumentCategory)}
-                        optionNames={DOCUMENT_NAMES}
-                        required
-                    />
+                    <SelectField name="category" label={UI_STRINGS.category} value={formData.category} onChange={handleChange} options={Object.values(DocumentCategory)} optionNames={DOCUMENT_NAMES} required />
+                    <SelectField name="source" label="Nguồn tài liệu" value={formData.source} onChange={handleChange} options={[{value: 'google_drive_pdf', label: 'Google Drive (PDF)'}, {value: 'office_365', label: 'Office 365 (Link)'}]} required />
                     <InputField name="name" label={UI_STRINGS.name} value={formData.name} onChange={handleChange} required />
                     <InputField name="url" label={UI_STRINGS.url} value={formData.url} onChange={handleChange} required />
                 </>
@@ -242,13 +218,14 @@ export const EditModal: React.FC<EditModalProps> = ({ item, type, parentId, onCl
 
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-md flex items-center justify-center z-50 animate-fade-in" onMouseDown={onClose}>
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl p-8 w-full max-w-2xl m-4 relative animate-fade-in-up" onMouseDown={e => e.stopPropagation()}>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl p-8 w-full max-w-2xl m-4 relative animate-fade-in-up flex flex-col" onMouseDown={e => e.stopPropagation()}>
                 <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors" aria-label="Close modal">
                     <X size={24} />
                 </button>
-                <h2 className="text-2xl font-bold text-center mb-6 text-[#E31F26]">{getTitle(type, !!item)}</h2>
-                <form onSubmit={handleSubmit}>
-                    <div className="space-y-5 max-h-[60vh] overflow-y-auto p-2 custom-scrollbar">
+                <h2 className="text-xl font-bold text-center mb-6 text-[#E31F26]">{getTitle(type)}</h2>
+                
+                <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
+                    <div className="space-y-5 flex-1 overflow-y-auto p-2 custom-scrollbar min-h-[200px]">
                         {renderFormFields()}
                     </div>
                     <div className="flex justify-end gap-4 mt-8">
